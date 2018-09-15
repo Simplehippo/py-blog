@@ -90,12 +90,14 @@ class ModelMetaclass(type):
     def __new__(cls, name, bases, attrs):
         if name=='Model':
             return type.__new__(cls, name, bases, attrs)
+        #表名, 若声明了__table__属性,则是__table__内容,否则就是类名的小写
         table_name = attrs.get('__table__', None) or name.lower()
         mappings = dict()
         fields=[]
         primary_key=None
         for k,v in attrs.items():
             if isinstance(v, Field):
+                #数据库字段名默认是类的属性名,这样可以缺省name属性了
                 if not v.name:
                     v.name = k
                 mappings[k] = v
@@ -167,27 +169,4 @@ class Model(dict, metaclass=ModelMetaclass):
         if len(rs) == 0:
             return None
         return cls(*rs[0])
-
-
-class Student(Model):
-    __table__ = 'student'
-    id = IntegerField('id', primary_key=True)
-    name = StringField('stu_name')
-    age = IntegerField('age')
-    score = FloatField('score')
-    time = BooleanField('time', default=time.time)
-
-#stu = Student(name='yang', age=12, score=88)
-#stu.printAllInfo()
-
-async def test(loop):
-    await create_pool(loop, user='root',password='123456', db='test')
-    stu = Student(name='杨育才', age=21, score=18)
-    await stu.save()
-
-loop = asyncio.get_event_loop()
-tasks = [test(loop)]
-loop.run_until_complete(asyncio.wait(tasks))
-loop.run_forever()
-
 
