@@ -1,12 +1,7 @@
-import asyncio, orm
-from models import User
+#用于简单的即时测试,为了快速看到编写,或修改的代码的效果
 
-async def test(loop):
-    await orm.create_pool(loop, user='root',password='123456', db='py_blog')
-    user = User(name='Test', email='test1@example.com', password='1234567890', image='about:blank')
-    await user.save()
+__author__ = '杨育才'
 
-loop = asyncio.get_event_loop()
-tasks = [test(loop)]
-loop.run_until_complete(asyncio.wait(tasks))
-loop.close()
+from config import configs
+
+print(configs)
