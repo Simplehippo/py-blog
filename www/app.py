@@ -1,8 +1,26 @@
 import logging; logging.basicConfig(level=logging.INFO)
-import asyncio, json, orm
+import asyncio, json, orm, os
 from aiohttp import web
+from jinja2 import Environment,FileSystemLoader
 from webs import add_routes
 from config import configs
+
+def init_jinja2(app, **kw):
+    logging.info('init jinja2...')
+    options = dict(
+        autoescape = kw.get('autoescape', True),
+        block_start_string = kw.get('block_start_string', '{%'),
+        block_end_string = kw.get('block_end_string', '%}'),
+        variable_start_string = kw.get('variable_start_string', '{{'),
+        variable_end_string = kw.get('variable_end_string', '}}'),
+        auto_reload = kw.get('auto_reload', True)
+    )
+    path = kw.get('path', None)
+    if path is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+    logging.info('set jinja2 template path: %s' % path)
+    env = Environment(loader=FileSystemLoader(path), **options)
+    app['__jinja2_env__'] = env
 
 async def logger_middlewares(app, handler):
     async def logger(request):
@@ -34,7 +52,7 @@ async def response_middlewares(app, handler):
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
-                html = '<h1>模板引擎拿到的html....</h1>'
+                html = app['__jinja2_env__'].get_template(template).render(**r)
                 resp = web.Response(body=html.encode('utf8'))
                 resp.content_type = 'text/html;charset=utf-8'
                 return resp 
@@ -47,12 +65,18 @@ async def response_middlewares(app, handler):
 
 async def init(loop):
     #初始化数据库连接池
-    await orm.create_pool(loop, user=configs['db']['user'], password=configs['db']['password'], db=configs['db']['database'])
+    await orm.create_pool(loop, 
+        user=configs['db']['user'], 
+        password=configs['db']['password'], 
+        db=configs['db']['database']
+    )
     #初始化aiohttp服务器
     app = web.Application(
         loop=loop,
         middlewares=[logger_middlewares, response_middlewares]
     )
+    #初始化模板引擎
+    init_jinja2(app)
     #扫描handlers内的handler,并自动注册
     add_routes(app, 'handlers')
     server = await loop.create_server(app.make_handler(), '127.0.0.1', 9000)
