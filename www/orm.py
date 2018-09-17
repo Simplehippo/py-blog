@@ -1,8 +1,8 @@
 #orm
 
 __author__ = '杨育才' 
-
-import asyncio, aiomysql, logging, time
+import logging; logging.basicConfig(level=logging.INFO)
+import asyncio, aiomysql, time
 
 #连接池
 async def create_pool(loop, **kw):
@@ -13,7 +13,7 @@ async def create_pool(loop, **kw):
         port = kw.get('port', 3306),
         user = kw['user'],
         password = kw['password'],
-        db = kw['db'],
+        db = kw['database'],
         charset = kw.get('charset', 'utf8'),
         autocommit = kw.get('autocommit', True),
         maxsize = kw.get('maxsize', 10),
@@ -28,9 +28,9 @@ async def select(sql, args=(), size=None):
         async with conn.cursor(aiomysql.DictCursor) as cursor:
             await cursor.execute(sql.replace('?', '%s'), args)
             if size:
-                rs = cursor.fetchmany(size)
+                rs = await cursor.fetchmany(size)
             else:
-                rs = cursor.fetchall()
+                rs = await cursor.fetchall()
     return rs
 
 #execute     (insert, update, delete)
@@ -47,7 +47,7 @@ async def execute(sql, args, autocommit=True):
                     await conn.commit()
         except BaseException as e:
             if not autocommit:
-                conn.rollback()
+                await conn.rollback()
             raise
     return affectedrow
 
@@ -154,6 +154,7 @@ class Model(dict, metaclass=ModelMetaclass):
         for k, v in Student.__mappings__.items():
             print(k, v, self.getValueOrDefault(k))
 
+
     async def save(self):
         '(save) save obj to database'
         fields_values = list(map(self.getValueOrDefault, self.__fields__))
@@ -162,11 +163,37 @@ class Model(dict, metaclass=ModelMetaclass):
         if rows != 1:
             print('(save) failed insert , effected rows %s !' % rows)
 
+    async def update(self):
+        '(update) update obj to database'
+        fields_values = list(map(self.getValueOrDefault, self.__fields__))
+        fields_values.append(self.getValueOrDefault(self.__primary_key__))
+        rows = await execute(self.__update__, fields_values)
+        if rows != 1:
+            print('(save) failed insert , effected rows %s !' % rows)
+
+    async def remove(self):
+        '(remove) remove obj from database'
+        primary_key_values = self.getValueOrDefault(self.__primary_key__)
+        rows = await execute(self.__delete__, primary_key_values)
+        if rows != 1:
+            print('(save) failed insert , effected rows %s !' % rows)        
+
     @classmethod
-    async def find(cls, pk):
-        'find a row by primary_key'
-        rs = await select('%s where %s = ?' % (cls.__select__, cls.__table_primary_key__), [pk,], 1)
+    async def find(cls, **kw):
+        'find a row by some param'
+        if len(kw) == 0:
+            return None
+        sql = '%s where ' % cls.__select__
+        values = []
+        for k, v in kw.items():
+            sql += '%s = ? and ' % cls.__mappings__[k].name
+            values.append(v)
+        sql = sql[:-4]
+        logging.info('(find) sql: %s' % sql)
+        logging.info('(find) values: %s' % str(values))
+        rs = await select(sql, values, 1)
         if len(rs) == 0:
             return None
-        return cls(*rs[0])
+        logging.info('(find) find success rs:%s' % rs)
+        return cls(**rs[0])
 
