@@ -1,5 +1,5 @@
 import logging; logging.basicConfig(level=logging.INFO)
-import functools, asyncio, inspect, aiohttp
+import functools, asyncio, inspect, aiohttp, os
 
 #GET请求的装饰器
 def get(path):
@@ -31,6 +31,11 @@ class RequestHandler(object):
         #kw = ...
         
         return await self._func(request)
+
+def add_static(app):
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+    app.router.add_static('/static/', path)
+    logging.info('server add_static(%s ==> %s)' % ('/static/', path))
 
 def add_route(app, fn):
     method = getattr(fn, '__method__', None)
