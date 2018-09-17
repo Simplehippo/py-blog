@@ -13,7 +13,7 @@ class User(Model):
     image = StringField(column_type='varchar(500)')
     created_at = FloatField(default=time.time)
 
-class Bolg(Model):
+class Blog(Model):
     __table__ = 'blogs'
 
     id = IntegerField(primary_key=True)
