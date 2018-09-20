@@ -187,7 +187,7 @@ class Model(dict, metaclass=ModelMetaclass):
             L=[]
             for row in rs:
                 L.append(cls(**row))
-            logging.info('findAll result is list,  rs_nums:%s' % len(L))
+            logging.info('(find) findAll result is list,  rs_nums:%s' % len(L))
             return L
         sql = '%s where ' % cls.__select__
         values = []
@@ -195,16 +195,16 @@ class Model(dict, metaclass=ModelMetaclass):
             sql += '%s = ? and ' % cls.__mappings__[k].name
             values.append(v)
         sql = sql[:-4]
-        logging.info('sql: %s' % sql)
-        logging.info('sql params: %s' % str(values))
+        logging.info('(find) sql: %s' % sql)
+        logging.info('(find) sql params: %s' % str(values))
         rs = await select(sql, values)
         if len(rs) == 0:
             return None
         if len(rs) == 1:
-            logging.info('find success rs_nums:1')
+            logging.info('(find) find success rs_nums:1')
             return cls(**rs[0])
         L=[]
         for row in rs:
             L.append(cls(**row))
-        logging.info('find result is list,  rs_nums:%s' % len(L))
+        logging.info('(find) find result is list,  rs_nums:%s' % len(L))
         return L
