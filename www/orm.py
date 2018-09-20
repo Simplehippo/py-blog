@@ -180,20 +180,31 @@ class Model(dict, metaclass=ModelMetaclass):
 
     @classmethod
     async def find(cls, **kw):
-        'find a row by some param'
+        'find a row or list by some param'
         if len(kw) == 0:
-            return None
+            #查询所有的行
+            rs = await select(cls.__select__)
+            L=[]
+            for row in rs:
+                L.append(cls(**row))
+            logging.info('findAll result is list,  rs_nums:%s' % len(L))
+            return L
         sql = '%s where ' % cls.__select__
         values = []
         for k, v in kw.items():
             sql += '%s = ? and ' % cls.__mappings__[k].name
             values.append(v)
         sql = sql[:-4]
-        logging.info('(find) sql: %s' % sql)
-        logging.info('(find) values: %s' % str(values))
-        rs = await select(sql, values, 1)
+        logging.info('sql: %s' % sql)
+        logging.info('sql params: %s' % str(values))
+        rs = await select(sql, values)
         if len(rs) == 0:
             return None
-        logging.info('(find) find success rs:%s' % rs)
-        return cls(**rs[0])
-
+        if len(rs) == 1:
+            logging.info('find success rs_nums:1')
+            return cls(**rs[0])
+        L=[]
+        for row in rs:
+            L.append(cls(**row))
+        logging.info('find result is list,  rs_nums:%s' % len(L))
+        return L

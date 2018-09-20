@@ -10,9 +10,9 @@ import orm
 async def test():
     #初始化数据库连接池
     await orm.create_pool(loop, **configs['db'])
-    #user = User(email='yang@qq.com', password='123456', name='yang', image='blank')
+    #user = User(email='yang1@qq.com', password='123456', name='yang', image='blank')
     #await user.save()
-    u = await User.find(id=1002)
+    u = await User.find()
     print('u: ', u)
     #await u.remove()
 
