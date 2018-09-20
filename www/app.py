@@ -1,9 +1,11 @@
 import logging; logging.basicConfig(level=logging.INFO)
-import asyncio, json, orm, os, time
+import asyncio, json, orm, os, time, hashlib
 from aiohttp import web
 from jinja2 import Environment,FileSystemLoader
 from webs import add_routes, add_static
 from config import configs
+from models import User
+from handlers import COOKIE_NAME, _COOKIE_KEY
 
 def init_jinja2(app, **kw):
     logging.info('init jinja2...')
@@ -39,15 +41,51 @@ def datetime_filter(t):
     dt = datetime.fromtimestamp(t)
     return u'%s年%s月%s日' % (dt.year, dt.month, dt.day)
 
-async def logger_middlewares(app, handler):
+async def auth_middleware(app, handler):
+    async def auth(request):
+        logging.info('auth_middleware check user: %s %s' % (request.method, request.path))
+        request.__user__ = None
+        cookie_str = request.cookies.get(COOKIE_NAME)
+        if cookie_str:
+            user = await cookie2user(cookie_str)
+            if user:
+                logging.info('set current user: %s' % user.email)
+                request.__user__ = User
+        return await handler(request)
+    return auth
+
+async def cookie2user(cookie_str):
+    if not cookie2user:
+        return None
+    try:
+        L = cookie_str.split('-')
+        if len(L) != 3:
+            return None
+        id, expires, sha1 = L
+        if int(expires) < time.time():
+            return None
+        user = await User.find(id=int(id))
+        if user is None:
+            return None
+        s = '%s-%s-%s-%s' % (user.id, user.password, expires, _COOKIE_KEY)
+        if sha1 != hashlib.sha1(s.encode('utf-8')).hexdigest():
+            logging.info('invalid sha1')
+            return None
+        user.password = '******'
+        return user
+    except Exception as e:
+        logging.info(e)
+        return None
+
+async def logger_middleware(app, handler):
     async def logger(request):
-        logging.info('logging_middlewares handler Request: %s %s' % (request.method, request.path))
+        logging.info('logging_middleware handler Request: %s %s' % (request.method, request.path))
         return (await handler(request))
     return logger
 
-async def response_middlewares(app, handler):
+async def response_middleware(app, handler):
     async def response(request):
-        logging.info('response_middlewares handler...')
+        logging.info('response_middleware handler...')
         r = await handler(request)
         if isinstance(r, web.StreamResponse):
             return r
@@ -86,7 +124,7 @@ async def init(loop):
     #初始化aiohttp服务器
     app = web.Application(
         loop=loop,
-        middlewares=[logger_middlewares, response_middlewares]
+        middlewares=[logger_middleware, auth_middleware, response_middleware]
     )
     #初始化模板引擎
     init_jinja2(app, filters=dict(datetime=datetime_filter))
