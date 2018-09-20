@@ -11,6 +11,6 @@ configs = {
         'database': 'py_blog'
     },
     'session': {
-        'secret': 'd4sa56d4sa56d4as5'
+        'secret': '1997-7-18'
     }
 }
