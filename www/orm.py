@@ -180,31 +180,68 @@ class Model(dict, metaclass=ModelMetaclass):
 
     @classmethod
     async def find(cls, **kw):
-        'find a row or list by some param'
-        if len(kw) == 0:
-            #查询所有的行
-            rs = await select(cls.__select__)
-            L=[]
-            for row in rs:
-                L.append(cls(**row))
-            logging.info('(find) findAll result is list,  rs_nums:%s' % len(L))
-            return L
-        sql = '%s where ' % cls.__select__
+        'find a row by some param'
+        sql = '%s' % cls.__select__
         values = []
+        paramSqlList = []
         for k, v in kw.items():
-            sql += '%s = ? and ' % cls.__mappings__[k].name
+            paramSqlList.append('%s = ?' % cls.__mappings__[k].name)
             values.append(v)
-        sql = sql[:-4]
+        if len(paramSqlList) > 0:
+            sql += ' where '
+        sql += ' and '.join(paramSqlList);
         logging.info('(find) sql: %s' % sql)
         logging.info('(find) sql params: %s' % str(values))
-        rs = await select(sql, values)
+        rs = await select(sql, values, 1)
         if len(rs) == 0:
             return None
-        if len(rs) == 1:
-            logging.info('(find) find success rs_nums:1')
-            return cls(**rs[0])
-        L=[]
+        logging.info('(find) find success rs_nums:1')
+        return cls(**rs[0])
+        
+
+    @classmethod
+    async def findAll(cls, orderBy=None, limit=None, **kw):
+        'find a list by some param'
+        sql = '%s' % cls.__select__
+        values = []
+        paramSqlList = []
+        for k, v in kw.items():
+            paramSqlList.append('%s = ?' % cls.__mappings__[k].name)
+            values.append(v)
+        if len(paramSqlList) > 0:
+            sql += ' where '
+        sql += ' and '.join(paramSqlList);
+        additionalSqlList = []
+        if orderBy:
+            additionalSqlList.append('order by')
+            additionalSqlList.append(orderBy)
+        if limit:
+            additionalSqlList.append('limit ?,?')
+            values.append(limit[0])
+            values.append(limit[1])
+        sql += ' ' + ' '.join(additionalSqlList)
+        logging.info('(findALL) sql: %s' % sql)
+        logging.info('(findAll) sql params: %s' % str(values))
+        rs = await select(sql, values)
+        L = []
         for row in rs:
             L.append(cls(**row))
-        logging.info('(find) find result is list,  rs_nums:%s' % len(L))
+        logging.info('(findAll) find success rs_nums:%d' % len(L))
         return L
+
+
+    @classmethod
+    async def findNumber(cls, countSql, **kw): 
+        sql = 'select %s as _num_ from %s' % (countSql, cls.__table__)
+        values = []
+        paramSqlList = []
+        for k, v in kw.items():
+            paramSqlList.append('%s = ?' % cls.__mappings__[k].name)
+            values.append(v)
+        if len(paramSqlList) > 0:
+            sql += ' where '
+        sql += ' and '.join(paramSqlList);
+        rs = await select(sql, values, 1)
+        if len(rs) == 0:
+            return None
+        return rs[0]['_num_']
