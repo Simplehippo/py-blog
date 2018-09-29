@@ -12,5 +12,8 @@ configs = {
     },
     'session': {
         'secret': '1997-7-18'
+    },
+    'server': {
+        'ip':'127.0.0.1'
     }
 }
