@@ -1,6 +1,6 @@
 import logging; logging.basicConfig(level=logging.INFO)
 import functools, asyncio, inspect, aiohttp, os
-from apis_error import APIError
+from apis import APIError
 from urllib import parse
 
 #GET请求的装饰器
