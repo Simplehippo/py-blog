@@ -224,7 +224,7 @@ class Model(dict, metaclass=ModelMetaclass):
         logging.info('(findAll) sql params: %s' % str(values))
         rs = await select(sql, values)
         L = []
-        for row in rs:
+        for row in rs: 
             L.append(cls(**row))
         logging.info('(findAll) find success rs_nums:%d' % len(L))
         return L
