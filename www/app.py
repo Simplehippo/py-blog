@@ -6,6 +6,7 @@ from webs import add_routes, add_static
 from config import configs
 from models import User
 from handlers import COOKIE_NAME, _COOKIE_KEY
+from datetime import datetime
 
 def init_jinja2(app, **kw):
     logging.info('init jinja2...')
@@ -50,7 +51,9 @@ async def auth_middleware(app, handler):
             user = await cookie2user(cookie_str)
             if user:
                 logging.info('set current user: %s' % user.email)
-                request.__user__ = User
+                request.__user__ = user
+        if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
+            return web.HTTPFound('/signin')
         return await handler(request)
     return auth
 
@@ -107,6 +110,7 @@ async def response_middleware(app, handler):
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
+                r['__user__'] = request.__user__
                 html = app['__jinja2_env__'].get_template(template).render(**r)
                 resp = web.Response(body=html.encode('utf8'))
                 resp.content_type = 'text/html;charset=utf-8'
@@ -132,8 +136,8 @@ async def init(loop):
     add_routes(app, 'handlers')
     #增加静态资源的访问
     add_static(app)
-    server = await loop.create_server(app.make_handler(), '127.0.0.1', 9000)
-    logging.info('server started at http://127.0.0.1:9000...')
+    server = await loop.create_server(app.make_handler(), configs['server']['ip'], 9000)
+    logging.info('server started at http://%s:9000...' % configs['server']['ip'])
     return server
 
 loop = asyncio.get_event_loop()
